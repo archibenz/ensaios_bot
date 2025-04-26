@@ -39,4 +39,4 @@ echo "Setup completed successfully!"
 echo "To run the bot, use: source venv/bin/activate && python ensaios.py"
 
 # Make the script executable after creation
-chmod +x run_ensaios_bot.sh
+chmod +x setup.sh
