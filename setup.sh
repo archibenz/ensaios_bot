@@ -38,5 +38,5 @@ python -c "from ensaios import init_db; init_db()"
 echo "Setup completed successfully!"
 echo "To run the bot, use: source venv/bin/activate && python ensaios.py"
 
-# Make the script executable after creation
+# Make the script executable
 chmod +x setup.sh
