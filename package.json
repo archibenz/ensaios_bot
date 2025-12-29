@@ -1,7 +1,7 @@
 {
   "name": "ton-resume-monorepo",
   "private": true,
-  "packageManager": "pnpm@8",
+  "packageManager": "pnpm@10.26.2",
   "scripts": {
     "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter bot dev\" \"pnpm --filter miniapp dev\"",
     "lint": "pnpm -r lint",
@@ -10,5 +10,11 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }
