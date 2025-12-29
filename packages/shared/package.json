@@ -1,0 +1,22 @@
+{
+  "name": "@ton-resume/shared",
+  "version": "0.0.1",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --dts",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5",
+    "tsup": "^7.2.0",
+    "vitest": "^1.5.3",
+    "zod": "^3.22.4"
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  }
+}

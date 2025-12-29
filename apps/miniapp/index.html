@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TON Resume</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" />
+    <style>
+      body {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #0e0f12;
+        color: #e8ecf1;
+      }
+      header {
+        padding: 16px 20px;
+        background: linear-gradient(90deg, #0c2f5c, #152238);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .ton-connect {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .tabs {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .tab {
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 1px solid #22324a;
+        background: #121622;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .tab.active {
+        background: linear-gradient(90deg, #1e4db7, #2c7df4);
+        border-color: #2c7df4;
+        color: #fff;
+      }
+      .card {
+        background: #121622;
+        border: 1px solid #22324a;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      label {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 6px;
+        color: #9bb3cc;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        background: #0c101a;
+        border: 1px solid #1e2a3f;
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: #e8ecf1;
+      }
+      textarea {
+        min-height: 90px;
+      }
+      button {
+        background: linear-gradient(90deg, #1e4db7, #2c7df4);
+        border: none;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        box-shadow: 0 8px 30px rgba(44, 125, 244, 0.3);
+        transition: transform 0.1s ease-in-out;
+      }
+      button:hover {
+        transform: translateY(-1px);
+      }
+      .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 10px 0;
+      }
+      .status-box {
+        margin-top: 12px;
+        padding: 12px;
+        background: #0c101a;
+        border-radius: 10px;
+        border: 1px dashed #2c7df4;
+        color: #7fb0ff;
+        font-size: 14px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 30px;
+        font-size: 12px;
+        color: #e8ecf1;
+      }
+      .pill.active {
+        background: #1c7b3a;
+      }
+      .pill.revoked {
+        background: #8c1b2c;
+      }
+      .list-item {
+        border: 1px solid #1e2a3f;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: #0c101a;
+      }
+      .flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .helper {
+        color: #7289aa;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">TON Resume</div>
+      <div class="ton-connect" id="ton-connect"></div>
+    </header>
+    <div class="container">
+      <div class="tabs">
+        <div class="tab active" data-tab="issuer">Issuer</div>
+        <div class="tab" data-tab="holder">Holder</div>
+        <div class="tab" data-tab="verifier">Verifier</div>
+      </div>
+      <div id="app"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "miniapp",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint 'src/**/*.{ts,tsx}'"
+  },
+  "dependencies": {
+    "@tonconnect/ui": "^2.6.1",
+    "@ton-resume/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0",
+    "@types/node": "^20.11.30",
+    "eslint": "^8.57.0"
+  }
+}
