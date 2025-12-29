@@ -1,0 +1,14 @@
+{
+  "name": "ton-resume-monorepo",
+  "private": true,
+  "packageManager": "pnpm@8",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter bot dev\" \"pnpm --filter miniapp dev\"",
+    "lint": "pnpm -r lint",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
