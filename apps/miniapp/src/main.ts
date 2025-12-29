@@ -19,7 +19,7 @@ const SETTINGS_KEY = 'miniapp_settings';
 const QUICK_NOTE_KEY = 'miniapp_quick_note';
 
 let authToken: string | null = null;
-let currentUser: { id: string; username?: string } | null = null;
+let currentUser: { id: string; username?: string; phone?: string; firstName?: string; lastName?: string } | null = null;
 let tonConnectUI: TonConnectUI | null = null;
 
 const app = document.getElementById('app')!;
@@ -62,21 +62,74 @@ function setProfileStatus(text: string) {
 function updateProfileCard() {
   const idEl = document.getElementById('profile-id');
   const usernameEl = document.getElementById('profile-username');
+  const phoneEl = document.getElementById('profile-phone');
+  const nameEl = document.getElementById('profile-name');
   if (!currentUser) {
     setProfileStatus('Не удалось авторизоваться через Telegram');
     if (idEl) idEl.textContent = '—';
     if (usernameEl) usernameEl.textContent = '—';
+    if (phoneEl) phoneEl.textContent = '—';
+    if (nameEl) nameEl.textContent = '—';
     return;
   }
   if (idEl) idEl.textContent = currentUser.id;
   if (usernameEl) usernameEl.textContent = currentUser.username ? `@${currentUser.username}` : 'не указано';
+  if (phoneEl) phoneEl.textContent = currentUser.phone || 'не указан';
+  if (nameEl) {
+    const nameParts = [currentUser.firstName, currentUser.lastName].filter(Boolean);
+    nameEl.textContent = nameParts.length > 0 ? nameParts.join(' ') : 'не указано';
+  }
   setProfileStatus('Авторизованы через Telegram');
+}
+
+function extractUserFromInitData(initData: string) {
+  try {
+    const params = new URLSearchParams(initData);
+    const userData = params.get('user');
+    if (!userData) return null;
+    const user = JSON.parse(userData) as {
+      id: number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+    };
+    return {
+      id: String(user.id),
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+    };
+  } catch (err) {
+    console.warn('Failed to parse initData', err);
+    return null;
+  }
+}
+
+function getUserFromTelegramWebApp() {
+  if (!window.Telegram?.WebApp?.initDataUnsafe?.user) return null;
+  const user = window.Telegram.WebApp.initDataUnsafe.user as {
+    id: number;
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+    phone_number?: string;
+  };
+  return {
+    id: String(user.id),
+    firstName: user.first_name,
+    lastName: user.last_name,
+    username: user.username,
+    phone: user.phone_number,
+  };
 }
 
 async function authenticate(role: 'issuer' | 'holder' = 'holder') {
   setProfileStatus('Авторизуем через Telegram...');
   try {
     const initData = window.Telegram?.WebApp?.initData || '';
+    const telegramUser = getUserFromTelegramWebApp();
+    
     const res = await fetch(`${API_BASE_URL}/v1/auth/telegram/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,18 +138,33 @@ async function authenticate(role: 'issuer' | 'holder' = 'holder') {
     const data = await res.json();
     if (data.ok) {
       authToken = data.token;
-      currentUser = data.user;
+      currentUser = {
+        ...data.user,
+        phone: telegramUser?.phone || undefined,
+        firstName: telegramUser?.firstName || undefined,
+        lastName: telegramUser?.lastName || undefined,
+      };
       renderUserBadge();
       updateProfileCard();
-      return data.user;
+      setProfileStatus('Профиль создан и авторизован');
+      return currentUser;
     }
   } catch (err) {
-    console.warn('Auth fallback to demo', err);
+    console.warn('Auth error, using fallback', err);
   }
   if (DEMO_FALLBACK) {
-    currentUser = { id: '999999', username: 'demo_user' };
+    const telegramUser = getUserFromTelegramWebApp();
+    const initUser = extractUserFromInitData(window.Telegram?.WebApp?.initData || '');
+    currentUser = {
+      id: telegramUser?.id || initUser?.id || '999999',
+      username: telegramUser?.username || initUser?.username || 'demo_user',
+      firstName: telegramUser?.firstName || initUser?.firstName,
+      lastName: telegramUser?.lastName || initUser?.lastName,
+      phone: telegramUser?.phone,
+    };
     renderUserBadge();
     updateProfileCard();
+    setProfileStatus('Профиль создан (демо режим)');
     return currentUser;
   }
   return null;
@@ -159,11 +227,14 @@ function renderLayout() {
       <div class="card">
         <div class="section-title">Профиль</div>
         <div class="helper" id="profile-status">Ожидаем авторизацию через Telegram...</div>
+        <div class="info-line"><span>Имя</span><strong id="profile-name">—</strong></div>
         <div class="info-line"><span>Telegram ID</span><strong id="profile-id">—</strong></div>
         <div class="info-line"><span>Username</span><strong id="profile-username">—</strong></div>
+        <div class="info-line"><span>Телефон</span><strong id="profile-phone">—</strong></div>
         <div class="button-row">
           <button id="copy-profile">Скопировать ID</button>
           <button id="refresh-profile" class="secondary">Обновить</button>
+          <button id="request-phone" class="secondary">Запросить телефон</button>
         </div>
       </div>
       <div class="card">
@@ -205,6 +276,30 @@ function renderLayout() {
   `;
 }
 
+async function handleRequestPhone() {
+  if (!window.Telegram?.WebApp) {
+    setProfileStatus('Telegram WebApp недоступен');
+    return;
+  }
+  setProfileStatus('Запрашиваем номер телефона...');
+  try {
+    window.Telegram.WebApp.requestContact();
+    setTimeout(() => {
+      const updatedUser = getUserFromTelegramWebApp();
+      if (updatedUser?.phone && currentUser) {
+        currentUser.phone = updatedUser.phone;
+        updateProfileCard();
+        setProfileStatus('Телефон получен. Если не видите изменения, обновите страницу.');
+      } else {
+        setProfileStatus('Предоставьте доступ к номеру телефона в настройках бота');
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('Error requesting phone', err);
+    setProfileStatus('Ошибка при запросе номера телефона');
+  }
+}
+
 function wireUI() {
   document.getElementById('copy-profile')?.addEventListener('click', () => {
     if (!currentUser?.id) return;
@@ -212,6 +307,7 @@ function wireUI() {
     setProfileStatus('ID скопирован в буфер обмена');
   });
   document.getElementById('refresh-profile')?.addEventListener('click', () => authenticate('holder'));
+  document.getElementById('request-phone')?.addEventListener('click', handleRequestPhone);
   document.getElementById('save-settings')?.addEventListener('click', () => {
     saveSettings(readSettingsFromForm());
   });

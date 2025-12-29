@@ -15,26 +15,62 @@
         color: #e8ecf1;
       }
       header {
-        padding: 16px 20px;
+        padding: 12px 16px;
         background: linear-gradient(90deg, #0c2f5c, #152238);
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        position: sticky;
+        top: 0;
+        z-index: 100;
       }
       .brand {
         font-weight: 700;
         letter-spacing: 0.5px;
+        font-size: 16px;
+        white-space: nowrap;
       }
       .ton-connect {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex: 1;
+        justify-content: flex-end;
+        min-width: 0;
+      }
+      .user-badge {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
       }
       .container {
         max-width: 1100px;
         margin: 0 auto;
-        padding: 20px;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      @media (max-width: 640px) {
+        .container {
+          padding: 12px;
+        }
+        .layout-grid {
+          grid-template-columns: 1fr;
+        }
+        header {
+          padding: 10px 12px;
+        }
+        .brand {
+          font-size: 14px;
+        }
+        .user-badge {
+          max-width: 150px;
+          font-size: 11px;
+        }
       }
       .card {
         background: #121622;
@@ -42,6 +78,13 @@
         border-radius: 16px;
         padding: 20px;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+      @media (max-width: 640px) {
+        .card {
+          padding: 16px;
+        }
       }
       .grid {
         display: grid;
@@ -63,9 +106,19 @@
         border-radius: 10px;
         padding: 10px 12px;
         color: #e8ecf1;
+        font-family: inherit;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #2c7df4;
       }
       textarea {
         min-height: 90px;
+        resize: vertical;
       }
       button {
         background: linear-gradient(90deg, #1e4db7, #2c7df4);
@@ -75,11 +128,22 @@
         border-radius: 12px;
         cursor: pointer;
         font-weight: 600;
+        font-size: 14px;
+        font-family: inherit;
         box-shadow: 0 8px 30px rgba(44, 125, 244, 0.3);
-        transition: transform 0.1s ease-in-out;
+        transition: transform 0.1s ease-in-out, opacity 0.2s;
+        white-space: nowrap;
       }
       button:hover {
         transform: translateY(-1px);
+      }
+      button:active {
+        transform: translateY(0);
+        opacity: 0.9;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
       .section-title {
         font-size: 16px;
@@ -165,26 +229,75 @@
         border: 1px solid #1e2a3f;
         margin: 8px 0;
       }
+      .info-line span {
+        color: #9bb3cc;
+        font-size: 14px;
+      }
+      .info-line strong {
+        color: #e8ecf1;
+        font-weight: 600;
+        word-break: break-all;
+        text-align: right;
+      }
       .button-row {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
         margin-top: 12px;
       }
-      .secondary {
+      button.secondary {
         background: #0c101a;
         border: 1px solid #22324a;
         color: #a7bed8;
         box-shadow: none;
       }
+      button.secondary:hover {
+        transform: none;
+        background: #151b28;
+      }
       .toggle-row {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin: 10px 0;
+        margin: 12px 0;
       }
-      .pill {
-        border: 1px solid transparent;
+      .toggle-row input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+        cursor: pointer;
+        accent-color: #2c7df4;
+      }
+      .toggle-row label {
+        margin: 0;
+        cursor: pointer;
+      }
+      .pill.muted {
+        display: inline-block;
+        padding: 8px 12px;
+        margin-top: 8px;
+        border-radius: 20px;
+        background: #1e2a3f;
+        color: #9bb3cc;
+        font-size: 12px;
+        word-break: break-all;
+        max-width: 100%;
+      }
+      label {
+        margin-top: 12px;
+      }
+      label:first-of-type {
+        margin-top: 0;
+      }
+      select, input[type="text"], textarea {
+        margin-bottom: 0;
+        box-sizing: border-box;
+      }
+      .card {
+        margin-bottom: 16px;
+      }
+      .section-title {
+        margin-top: 0;
+        margin-bottom: 16px;
       }
     </style>
   </head>
