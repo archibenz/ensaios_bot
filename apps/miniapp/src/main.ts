@@ -1,4 +1,3 @@
-import '@tonconnect/ui/dist/tonconnect-ui.min.css';
 import { TonConnectUI } from '@tonconnect/ui';
 
 declare global {
