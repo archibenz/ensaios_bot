@@ -43,10 +43,9 @@
       }
       .user-badge {
         font-size: 12px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 200px;
+      }
+      .user-badge span:last-child {
+        max-width: 150px;
       }
       .container {
         max-width: 1100px;
@@ -205,6 +204,14 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         color: #a7bed8;
         font-size: 14px;
+        min-width: 0;
+        flex: 0 1 auto;
+      }
+      .user-badge span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
       }
       .user-dot {
         width: 8px;
@@ -238,6 +245,11 @@
         font-weight: 600;
         word-break: break-all;
         text-align: right;
+        max-width: 60%;
+      }
+      a {
+        text-decoration: none;
+        color: inherit;
       }
       .button-row {
         display: flex;

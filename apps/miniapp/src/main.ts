@@ -19,10 +19,28 @@ const SETTINGS_KEY = 'miniapp_settings';
 const QUICK_NOTE_KEY = 'miniapp_quick_note';
 
 let authToken: string | null = null;
-let currentUser: { id: string; username?: string; phone?: string; firstName?: string; lastName?: string } | null = null;
+let currentUser: {
+  id: string;
+  username?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  hash?: string;
+} | null = null;
 let tonConnectUI: TonConnectUI | null = null;
+let walletAddress: string | null = null;
 
 const app = document.getElementById('app')!;
+
+async function generateUserHash(userId: string, username?: string, phone?: string): Promise<string> {
+  const data = `${userId}:${username || ''}:${phone || ''}`;
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hashHex.substring(0, 16).toUpperCase();
+}
 
 function loadSettings(): Settings {
   try {
@@ -59,17 +77,19 @@ function setProfileStatus(text: string) {
   if (status) status.textContent = text;
 }
 
-function updateProfileCard() {
+async function updateProfileCard() {
   const idEl = document.getElementById('profile-id');
   const usernameEl = document.getElementById('profile-username');
   const phoneEl = document.getElementById('profile-phone');
   const nameEl = document.getElementById('profile-name');
+  const hashEl = document.getElementById('profile-hash');
   if (!currentUser) {
     setProfileStatus('Не удалось авторизоваться через Telegram');
     if (idEl) idEl.textContent = '—';
     if (usernameEl) usernameEl.textContent = '—';
     if (phoneEl) phoneEl.textContent = '—';
     if (nameEl) nameEl.textContent = '—';
+    if (hashEl) hashEl.textContent = '—';
     return;
   }
   if (idEl) idEl.textContent = currentUser.id;
@@ -79,6 +99,14 @@ function updateProfileCard() {
     const nameParts = [currentUser.firstName, currentUser.lastName].filter(Boolean);
     nameEl.textContent = nameParts.length > 0 ? nameParts.join(' ') : 'не указано';
   }
+  if (!currentUser.hash) {
+    currentUser.hash = await generateUserHash(
+      currentUser.id,
+      currentUser.username,
+      currentUser.phone
+    );
+  }
+  if (hashEl) hashEl.textContent = currentUser.hash;
   setProfileStatus('Авторизованы через Telegram');
 }
 
@@ -145,7 +173,7 @@ async function authenticate(role: 'issuer' | 'holder' = 'holder') {
         lastName: telegramUser?.lastName || undefined,
       };
       renderUserBadge();
-      updateProfileCard();
+      await updateProfileCard();
       setProfileStatus('Профиль создан и авторизован');
       return currentUser;
     }
@@ -163,7 +191,7 @@ async function authenticate(role: 'issuer' | 'holder' = 'holder') {
       phone: telegramUser?.phone,
     };
     renderUserBadge();
-    updateProfileCard();
+    await updateProfileCard();
     setProfileStatus('Профиль создан (демо режим)');
     return currentUser;
   }
@@ -209,15 +237,43 @@ function runQuickAction() {
   }, 350);
 }
 
-function updateWalletUI(address?: string) {
+async function updateWalletUI(address?: string) {
+  walletAddress = address || null;
   const status = document.getElementById('wallet-status');
   const pill = document.getElementById('wallet-address-pill');
+  const balanceEl = document.getElementById('wallet-balance');
+  const linkEl = document.getElementById('wallet-link') as HTMLAnchorElement | null;
+  
   if (address) {
     if (status) status.textContent = 'Кошелек подключен';
-    if (pill) pill.textContent = address;
+    if (pill) pill.textContent = `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+    if (linkEl) {
+      linkEl.href = `https://tonviewer.com/${address}`;
+      linkEl.style.display = 'inline-block';
+    }
+    if (balanceEl) {
+      balanceEl.textContent = 'Загружаем...';
+      try {
+        const res = await fetch(`${API_BASE_URL}/v1/wallet/balance?address=${address}`, {
+          headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const balance = parseFloat(data.balance || '0');
+          balanceEl.textContent = `${balance.toFixed(2)} TON`;
+        } else {
+          balanceEl.textContent = 'Не удалось загрузить';
+        }
+      } catch (err) {
+        console.error('Error loading balance', err);
+        balanceEl.textContent = 'Ошибка загрузки';
+      }
+    }
   } else {
     if (status) status.textContent = 'Подключите кошелек через кнопку в шапке';
     if (pill) pill.textContent = 'Нет кошелька';
+    if (balanceEl) balanceEl.textContent = '—';
+    if (linkEl) linkEl.style.display = 'none';
   }
 }
 
@@ -231,6 +287,7 @@ function renderLayout() {
         <div class="info-line"><span>Telegram ID</span><strong id="profile-id">—</strong></div>
         <div class="info-line"><span>Username</span><strong id="profile-username">—</strong></div>
         <div class="info-line"><span>Телефон</span><strong id="profile-phone">—</strong></div>
+        <div class="info-line"><span>Хэш профиля</span><strong id="profile-hash" style="font-family: monospace; font-size: 12px;">—</strong></div>
         <div class="button-row">
           <button id="copy-profile">Скопировать ID</button>
           <button id="refresh-profile" class="secondary">Обновить</button>
@@ -262,6 +319,16 @@ function renderLayout() {
         <div class="section-title">Кошелек TON</div>
         <div class="helper" id="wallet-status">Подключите кошелек через кнопку в шапке.</div>
         <div class="pill muted" id="wallet-address-pill">Нет кошелька</div>
+        <div class="info-line" style="margin-top: 12px;">
+          <span>Баланс</span>
+          <strong id="wallet-balance">—</strong>
+        </div>
+        <div class="button-row">
+          <a id="wallet-link" href="#" target="_blank" rel="noopener noreferrer" style="display: none;">
+            <button class="secondary">Открыть в TON Viewer</button>
+          </a>
+          <button id="refresh-wallet" class="secondary">Обновить баланс</button>
+        </div>
       </div>
       <div class="card">
         <div class="section-title">Быстрое действие</div>
@@ -288,8 +355,9 @@ async function handleRequestPhone() {
       const updatedUser = getUserFromTelegramWebApp();
       if (updatedUser?.phone && currentUser) {
         currentUser.phone = updatedUser.phone;
-        updateProfileCard();
-        setProfileStatus('Телефон получен. Если не видите изменения, обновите страницу.');
+        updateProfileCard().then(() => {
+          setProfileStatus('Телефон получен. Если не видите изменения, обновите страницу.');
+        });
       } else {
         setProfileStatus('Предоставьте доступ к номеру телефона в настройках бота');
       }
@@ -312,6 +380,11 @@ function wireUI() {
     saveSettings(readSettingsFromForm());
   });
   document.getElementById('run-action')?.addEventListener('click', runQuickAction);
+  document.getElementById('refresh-wallet')?.addEventListener('click', () => {
+    if (walletAddress) {
+      updateWalletUI(walletAddress);
+    }
+  });
 }
 
 function initTonConnect() {

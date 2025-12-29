@@ -258,6 +258,38 @@ fastify.post('/v1/privacy/update', async (request, reply) => {
   return { ok: true, id: parsed.data.id, visibility: parsed.data.visibility };
 });
 
+fastify.get('/v1/wallet/balance', async (request, reply) => {
+  if (!request.user) return reply.status(401).send({ ok: false, error: 'Unauthorized' });
+  const address = (request.query as { address?: string }).address;
+  if (!address) return reply.status(400).send({ ok: false, error: 'Address required' });
+  
+  try {
+    const res = await fetch(`https://tonapi.io/v2/accounts/${address}`, {
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.TONAPI_KEY || ''}`
+      },
+    });
+    
+    if (!res.ok) {
+      fastify.log.warn(`TON API returned ${res.status} for address ${address}`);
+      return { ok: false, error: 'Failed to fetch balance from TON API' };
+    }
+    
+    const data = await res.json();
+    if (data && typeof data.balance === 'string') {
+      const balanceNano = BigInt(data.balance);
+      const balance = Number(balanceNano) / 1e9;
+      return { ok: true, balance: balance.toFixed(2), address };
+    }
+    
+    return { ok: false, error: 'Invalid response format' };
+  } catch (err) {
+    fastify.log.error(err);
+    return reply.status(500).send({ ok: false, error: 'Internal server error' });
+  }
+});
+
 fastify.get('/health', async () => ({ ok: true }));
 
 if (process.env.NODE_ENV !== 'test') {
