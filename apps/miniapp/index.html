@@ -36,25 +36,6 @@
         margin: 0 auto;
         padding: 20px;
       }
-      .tabs {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-      }
-      .tab {
-        padding: 10px 16px;
-        border-radius: 12px;
-        border: 1px solid #22324a;
-        background: #121622;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-      .tab.active {
-        background: linear-gradient(90deg, #1e4db7, #2c7df4);
-        border-color: #2c7df4;
-        color: #fff;
-      }
       .card {
         background: #121622;
         border: 1px solid #22324a;
@@ -127,6 +108,10 @@
       .pill.revoked {
         background: #8c1b2c;
       }
+      .pill.muted {
+        background: #1e2a3f;
+        color: #9bb3cc;
+      }
       .list-item {
         border: 1px solid #1e2a3f;
         border-radius: 12px;
@@ -164,6 +149,43 @@
         background: #44d18d;
         box-shadow: 0 0 0 4px rgba(68, 209, 141, 0.2);
       }
+      .layout-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .info-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        background: #0c101a;
+        border-radius: 10px;
+        border: 1px solid #1e2a3f;
+        margin: 8px 0;
+      }
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .secondary {
+        background: #0c101a;
+        border: 1px solid #22324a;
+        color: #a7bed8;
+        box-shadow: none;
+      }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 10px 0;
+      }
+      .pill {
+        border: 1px solid transparent;
+      }
     </style>
   </head>
   <body>
@@ -173,11 +195,6 @@
       <div class="user-badge" id="user-info" style="display:none;"></div>
     </header>
     <div class="container">
-      <div class="tabs">
-        <div class="tab active" data-tab="issuer">Issuer</div>
-        <div class="tab" data-tab="holder">Holder</div>
-        <div class="tab" data-tab="verifier">Verifier</div>
-      </div>
       <div id="app"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>

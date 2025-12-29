@@ -6,47 +6,38 @@ declare global {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
-const DEMO_FALLBACK = true; // allow UX to stay clickable even if backend is unreachable
+type Settings = {
+  visibility: 'public' | 'private';
+  notifications: boolean;
+  language: 'ru' | 'en';
+};
+
+const API_BASE_URL =
+  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+const DEMO_FALLBACK = true;
+const SETTINGS_KEY = 'miniapp_settings';
+const QUICK_NOTE_KEY = 'miniapp_quick_note';
+
 let authToken: string | null = null;
-let currentRole: 'issuer' | 'holder' = 'holder';
 let currentUser: { id: string; username?: string } | null = null;
+let tonConnectUI: TonConnectUI | null = null;
 
 const app = document.getElementById('app')!;
 
-function setTab(active: 'issuer' | 'holder' | 'verifier') {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    const el = tab as HTMLElement;
-    el.classList.toggle('active', el.dataset.tab === active);
-  });
-  currentRole = active === 'issuer' ? 'issuer' : 'holder';
-  render(active);
+function loadSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return JSON.parse(raw) as Settings;
+  } catch (err) {
+    console.warn('Failed to load settings', err);
+  }
+  return { visibility: 'public', notifications: true, language: 'ru' };
 }
 
-async function authenticate(role: 'issuer' | 'holder' = 'holder') {
-  try {
-    const initData = window.Telegram?.WebApp?.initData || '';
-    const res = await fetch(`${API_BASE_URL}/v1/auth/telegram/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData, role }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      authToken = data.token;
-      currentUser = data.user;
-      renderUserBadge();
-      return data.user;
-    }
-  } catch (err) {
-    console.error(err);
-  }
-  if (DEMO_FALLBACK) {
-    currentUser = { id: '999999', username: 'demo_user' };
-    renderUserBadge();
-    return currentUser;
-  }
-  return null;
+function saveSettings(settings: Settings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  const status = document.getElementById('settings-status');
+  if (status) status.textContent = 'Настройки сохранены';
 }
 
 function renderUserBadge() {
@@ -63,290 +54,180 @@ function renderUserBadge() {
   }</span>`;
 }
 
-function inputField(label: string, id: string, type: 'text' | 'textarea' = 'text') {
-  if (type === 'textarea') {
-    return `<div><label for="${id}">${label}</label><textarea id="${id}"></textarea></div>`;
-  }
-  return `<div><label for="${id}">${label}</label><input id="${id}" type="text" /></div>`;
+function setProfileStatus(text: string) {
+  const status = document.getElementById('profile-status');
+  if (status) status.textContent = text;
 }
 
-function renderIssuer() {
-  app.innerHTML = `
-    <div class="card">
-      <div class="section-title">Mint SBT</div>
-      <div class="grid">
-        ${inputField('Holder Telegram ID', 'holderTelegramId')}
-        ${inputField('Holder Wallet (optional)', 'holderWallet')}
-        ${inputField('Issuer Name', 'issuerName')}
-        ${inputField('Issuer Tier', 'issuerTier')}
-      </div>
-      <div class="grid" style="margin-top:12px;">
-        ${inputField('Role / Position', 'roleField')}
-        ${inputField('Company', 'companyField')}
-        ${inputField('Start Date', 'startDate')}
-        ${inputField('End Date', 'endDate')}
-      </div>
-      ${inputField('Description', 'description', 'textarea')}
-      <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-        <button id="mintBtn">Mint SBT</button>
-      </div>
-      <div class="status-box" id="issuerStatus">Waiting for action...</div>
-    </div>
-    <div class="card" style="margin-top:16px;">
-      <div class="section-title">Revoke Credential</div>
-      ${inputField('Credential ID', 'revokeId')}
-      <button id="revokeBtn" style="margin-top:10px;">Revoke</button>
-      <div class="status-box" id="revokeStatus">No revocation sent.</div>
-    </div>
-  `;
-  document.getElementById('mintBtn')?.addEventListener('click', async () => {
-    await authenticate('issuer');
-    const payload = {
-      holderTelegramId: (document.getElementById('holderTelegramId') as HTMLInputElement).value,
-      holderWallet: (document.getElementById('holderWallet') as HTMLInputElement).value || undefined,
-      issuerName: (document.getElementById('issuerName') as HTMLInputElement).value,
-      issuerTier: (document.getElementById('issuerTier') as HTMLInputElement).value || 'standard',
-      payload: {
-        holderName: 'Holder',
-        role: (document.getElementById('roleField') as HTMLInputElement).value,
-        company: (document.getElementById('companyField') as HTMLInputElement).value,
-        startDate: (document.getElementById('startDate') as HTMLInputElement).value,
-        endDate: (document.getElementById('endDate') as HTMLInputElement).value,
-        description: (document.getElementById('description') as HTMLTextAreaElement).value,
-      },
-    };
-    const statusBox = document.getElementById('issuerStatus');
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/mint-intent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authToken ? `Bearer ${authToken}` : '',
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        statusBox!.textContent = `Minted. ID: ${data.id}, Hash: ${data.contentHash}, Status: ${data.status}`;
-      } else {
-        statusBox!.textContent = data.error || 'Failed to mint';
-      }
-    } catch (err) {
-      console.error(err);
-      statusBox!.textContent = 'Demo minted. ID: DEMO-123, Hash: demo-hash, Status: active';
-    }
-  });
-
-  document.getElementById('revokeBtn')?.addEventListener('click', async () => {
-    await authenticate('issuer');
-    const id = (document.getElementById('revokeId') as HTMLInputElement).value;
-    const statusBox = document.getElementById('revokeStatus');
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/revoke`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authToken ? `Bearer ${authToken}` : '',
-        },
-        body: JSON.stringify({ id }),
-      });
-      const data = await res.json();
-      statusBox!.textContent = data.ok ? `Revoked ${id}` : data.error || 'Failed to revoke';
-    } catch (err) {
-      console.error(err);
-      statusBox!.textContent = `Demo revoke: credential ${id || 'DEMO-123'} marked revoked`;
-    }
-  });
-}
-
-async function renderHolder() {
-  app.innerHTML = `
-    <div class="card">
-      <div class="section-title">Мой профиль</div>
-      <div class="grid" style="margin-bottom:12px;">
-        <div class="status-box" id="holderInfo">Подключаемся к Telegram...</div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button id="refreshPortfolio">Обновить</button>
-          <button id="copyId">Скопировать мой Telegram ID</button>
-        </div>
-      </div>
-    </div>
-    <div class="card" style="margin-top:16px;">
-      <div class="section-title">Portfolio</div>
-      <div id="portfolioList">Loading...</div>
-    </div>
-  `;
-  const listEl = document.getElementById('portfolioList')!;
-  const info = document.getElementById('holderInfo')!;
-  const user = await authenticate('holder');
-  if (!user) {
-    listEl.textContent = 'Authentication failed';
-    info.textContent = 'Не удалось авторизоваться через Telegram';
+function updateProfileCard() {
+  const idEl = document.getElementById('profile-id');
+  const usernameEl = document.getElementById('profile-username');
+  if (!currentUser) {
+    setProfileStatus('Не удалось авторизоваться через Telegram');
+    if (idEl) idEl.textContent = '—';
+    if (usernameEl) usernameEl.textContent = '—';
     return;
   }
-  info.textContent = `ID: ${user.id}${user.username ? ` (@${user.username})` : ''}`;
-  document.getElementById('copyId')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(user.id.toString());
-    info.textContent = 'ID скопирован в буфер обмена';
-  });
-  document.getElementById('refreshPortfolio')?.addEventListener('click', () => renderHolder());
+  if (idEl) idEl.textContent = currentUser.id;
+  if (usernameEl) usernameEl.textContent = currentUser.username ? `@${currentUser.username}` : 'не указано';
+  setProfileStatus('Авторизованы через Telegram');
+}
+
+async function authenticate(role: 'issuer' | 'holder' = 'holder') {
+  setProfileStatus('Авторизуем через Telegram...');
   try {
-    const res = await fetch(`${API_BASE_URL}/v1/portfolio`, {
-      headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
+    const initData = window.Telegram?.WebApp?.initData || '';
+    const res = await fetch(`${API_BASE_URL}/v1/auth/telegram/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData, role }),
     });
     const data = await res.json();
-    if (!data.ok) {
-      listEl.textContent = data.error || 'Failed to load';
-      return;
+    if (data.ok) {
+      authToken = data.token;
+      currentUser = data.user;
+      renderUserBadge();
+      updateProfileCard();
+      return data.user;
     }
-    listEl.innerHTML = '';
-    data.credentials.forEach((cred: any) => {
-      const el = document.createElement('div');
-      el.className = 'list-item';
-      el.innerHTML = `
-        <div class="flex-between">
-          <div><strong>${cred.issuerName || 'Issuer'}</strong> • ${cred.issuerTier}</div>
-          <div class="pill ${cred.status === 'active' ? 'active' : 'revoked'}">${cred.status}</div>
-        </div>
-        <div class="helper">Hash: ${cred.contentHash}</div>
-        ${cred.payload ? `<div class="helper">Role: ${cred.payload.role} @ ${cred.payload.company}</div>` : ''}
-        <div style="margin-top:8px;">
-          <label for="privacy-${cred.id}">Visibility</label>
-          <select id="privacy-${cred.id}">
-            <option value="FULL" ${cred.privacyLevel === 'FULL' ? 'selected' : ''}>Full</option>
-            <option value="FACT_ONLY" ${cred.privacyLevel === 'FACT_ONLY' ? 'selected' : ''}>Fact only</option>
-          </select>
-        </div>
-      `;
-      listEl.appendChild(el);
-      const select = document.getElementById(`privacy-${cred.id}`) as HTMLSelectElement;
-      select.addEventListener('change', async () => {
-        await authenticate('holder');
-        await fetch(`${API_BASE_URL}/v1/privacy/update`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: authToken ? `Bearer ${authToken}` : '',
-          },
-          body: JSON.stringify({ id: cred.id, visibility: select.value }),
-        });
-      });
-    });
   } catch (err) {
-    console.error(err);
-    listEl.innerHTML = '';
-    const demo = [
-      {
-        id: 'DEMO-123',
-        issuerName: 'TON Labs',
-        issuerTier: 'verified',
-        status: 'active',
-        contentHash: 'demo-hash-123',
-        payload: { role: 'Engineer', company: 'Demo Corp' },
-        privacyLevel: 'FULL',
-      },
-      {
-        id: 'DEMO-456',
-        issuerName: 'Web3 HR',
-        issuerTier: 'trusted',
-        status: 'revoked',
-        contentHash: 'demo-hash-456',
-        payload: { role: 'Designer', company: 'UI Studio' },
-        privacyLevel: 'FACT_ONLY',
-      },
-    ];
-    demo.forEach((cred) => {
-      const el = document.createElement('div');
-      el.className = 'list-item';
-      el.innerHTML = `
-        <div class="flex-between">
-          <div><strong>${cred.issuerName}</strong> • ${cred.issuerTier}</div>
-          <div class="pill ${cred.status === 'active' ? 'active' : 'revoked'}">${cred.status}</div>
-        </div>
-        <div class="helper">Hash: ${cred.contentHash}</div>
-        <div class="helper">Role: ${cred.payload.role} @ ${cred.payload.company}</div>
-        <div style="margin-top:8px;">
-          <label>Visibility</label>
-          <select disabled>
-            <option>${cred.privacyLevel}</option>
-          </select>
-        </div>
-      `;
-      listEl.appendChild(el);
-    });
+    console.warn('Auth fallback to demo', err);
+  }
+  if (DEMO_FALLBACK) {
+    currentUser = { id: '999999', username: 'demo_user' };
+    renderUserBadge();
+    updateProfileCard();
+    return currentUser;
+  }
+  return null;
+}
+
+function applySettingsToForm(settings: Settings) {
+  const visibility = document.getElementById('setting-visibility') as HTMLSelectElement | null;
+  const notifications = document.getElementById('setting-notifications') as HTMLInputElement | null;
+  const language = document.getElementById('setting-language') as HTMLSelectElement | null;
+  if (visibility) visibility.value = settings.visibility;
+  if (notifications) notifications.checked = settings.notifications;
+  if (language) language.value = settings.language;
+}
+
+function readSettingsFromForm(): Settings {
+  const visibility = (document.getElementById('setting-visibility') as HTMLSelectElement).value as
+    | 'public'
+    | 'private';
+  const notifications = (document.getElementById('setting-notifications') as HTMLInputElement).checked;
+  const language = (document.getElementById('setting-language') as HTMLSelectElement).value as 'ru' | 'en';
+  return { visibility, notifications, language };
+}
+
+function restoreQuickNote() {
+  const note = localStorage.getItem(QUICK_NOTE_KEY);
+  const field = document.getElementById('quick-note') as HTMLTextAreaElement | null;
+  if (note && field) field.value = note;
+}
+
+function runQuickAction() {
+  const noteField = document.getElementById('quick-note') as HTMLTextAreaElement;
+  const status = document.getElementById('action-status');
+  const note = noteField.value.trim();
+  if (!note) {
+    if (status) status.textContent = 'Добавьте текст заявки';
+    return;
+  }
+  localStorage.setItem(QUICK_NOTE_KEY, note);
+  if (status) status.textContent = 'Отправляем...';
+  setTimeout(() => {
+    if (status) status.textContent = 'Заявка отправлена (демо). Мы сохранили её локально.';
+  }, 350);
+}
+
+function updateWalletUI(address?: string) {
+  const status = document.getElementById('wallet-status');
+  const pill = document.getElementById('wallet-address-pill');
+  if (address) {
+    if (status) status.textContent = 'Кошелек подключен';
+    if (pill) pill.textContent = address;
+  } else {
+    if (status) status.textContent = 'Подключите кошелек через кнопку в шапке';
+    if (pill) pill.textContent = 'Нет кошелька';
   }
 }
 
-function renderVerifier() {
+function renderLayout() {
   app.innerHTML = `
-    <div class="card">
-      <div class="section-title">Verify credential</div>
-      ${inputField('Credential ID', 'verifyId')}
-      ${inputField('Content Hash', 'verifyHash')}
-      <button id="verifyBtn" style="margin-top:12px;">Verify</button>
-      <div class="status-box" id="verifyStatus">Awaiting verification.</div>
+    <div class="layout-grid">
+      <div class="card">
+        <div class="section-title">Профиль</div>
+        <div class="helper" id="profile-status">Ожидаем авторизацию через Telegram...</div>
+        <div class="info-line"><span>Telegram ID</span><strong id="profile-id">—</strong></div>
+        <div class="info-line"><span>Username</span><strong id="profile-username">—</strong></div>
+        <div class="button-row">
+          <button id="copy-profile">Скопировать ID</button>
+          <button id="refresh-profile" class="secondary">Обновить</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Настройки профиля</div>
+        <label for="setting-visibility">Видимость</label>
+        <select id="setting-visibility">
+          <option value="public">Публичный</option>
+          <option value="private">Только я</option>
+        </select>
+        <div class="toggle-row">
+          <input type="checkbox" id="setting-notifications" />
+          <label for="setting-notifications">Уведомления в Telegram</label>
+        </div>
+        <label for="setting-language">Язык</label>
+        <select id="setting-language">
+          <option value="ru">Русский</option>
+          <option value="en">English</option>
+        </select>
+        <div class="button-row">
+          <button id="save-settings">Сохранить</button>
+        </div>
+        <div class="helper" id="settings-status">Настройки не сохранены</div>
+      </div>
+      <div class="card">
+        <div class="section-title">Кошелек TON</div>
+        <div class="helper" id="wallet-status">Подключите кошелек через кнопку в шапке.</div>
+        <div class="pill muted" id="wallet-address-pill">Нет кошелька</div>
+      </div>
+      <div class="card">
+        <div class="section-title">Быстрое действие</div>
+        <label for="quick-note">Комментарий</label>
+        <textarea id="quick-note" placeholder="Например, запросить справку или статус"></textarea>
+        <div class="button-row">
+          <button id="run-action">Отправить</button>
+        </div>
+        <div class="status-box" id="action-status">Ждет ввода.</div>
+      </div>
     </div>
   `;
-  document.getElementById('verifyBtn')?.addEventListener('click', async () => {
-    const id = (document.getElementById('verifyId') as HTMLInputElement).value;
-    const hash = (document.getElementById('verifyHash') as HTMLInputElement).value;
-    const statusBox = document.getElementById('verifyStatus');
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id || undefined, hash: hash || undefined }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        statusBox!.textContent = `Status: ${data.status}, Match: ${data.match}, Tier: ${data.issuerTier}`;
-      } else {
-        statusBox!.textContent = data.error || 'Not found';
-      }
-    } catch (err) {
-      console.error(err);
-      statusBox!.textContent = 'Demo verify: status active, match true, tier verified';
-    }
-  });
 }
 
-function render(tab: 'issuer' | 'holder' | 'verifier') {
-  switch (tab) {
-    case 'issuer':
-      renderIssuer();
-      break;
-    case 'holder':
-      renderHolder();
-      break;
-    case 'verifier':
-      renderVerifier();
-      break;
-  }
-}
-
-function initTabs() {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => setTab((tab as HTMLElement).dataset.tab as any));
+function wireUI() {
+  document.getElementById('copy-profile')?.addEventListener('click', () => {
+    if (!currentUser?.id) return;
+    navigator.clipboard.writeText(currentUser.id.toString());
+    setProfileStatus('ID скопирован в буфер обмена');
   });
+  document.getElementById('refresh-profile')?.addEventListener('click', () => authenticate('holder'));
+  document.getElementById('save-settings')?.addEventListener('click', () => {
+    saveSettings(readSettingsFromForm());
+  });
+  document.getElementById('run-action')?.addEventListener('click', runQuickAction);
 }
 
 function initTonConnect() {
   const target = document.getElementById('ton-connect');
   if (!target) return;
-  const tonConnectUI = new TonConnectUI({
+  tonConnectUI = new TonConnectUI({
     manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json',
   });
   tonConnectUI.uiOptions = { twaReturnUrl: 'https://t.me' };
   tonConnectUI.renderWalletList(target);
-  tonConnectUI.onStatusChange((wallet) => {
-    const existing = document.getElementById('wallet-address');
-    if (existing) existing.remove();
-    if (wallet?.account?.address) {
-      const span = document.createElement('span');
-      span.id = 'wallet-address';
-      span.textContent = wallet.account.address;
-      target.appendChild(span);
-    }
+  tonConnectUI.onStatusChange((wallet: any) => {
+    updateWalletUI(wallet?.account?.address);
   });
 }
 
@@ -357,7 +238,11 @@ function initTelegramUI() {
   }
 }
 
+renderLayout();
+wireUI();
+applySettingsToForm(loadSettings());
+restoreQuickNote();
 initTelegramUI();
 initTonConnect();
-initTabs();
-render('issuer');
+updateWalletUI();
+authenticate('holder');

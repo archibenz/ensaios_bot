@@ -10,8 +10,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "lib": ["ESNext", "DOM"],
-    "types": ["vite/client"]
+    "lib": ["ESNext", "DOM"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": []
