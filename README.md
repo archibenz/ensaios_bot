@@ -19,6 +19,17 @@ MVP Telegram Mini App + Bot + Backend for issuing and verifying non-transferable
 3. Install deps: `pnpm install`.
 4. Run all services: `pnpm dev` (starts API, bot, mini app).
 
+## Быстрый запуск (RU)
+1. Установите pnpm `npm i -g pnpm`.
+2. Скопируйте переменные окружения: `cp .env.example .env` и заполните токен бота и URL-адреса.
+3. Установите зависимости: `pnpm install` (в корне).
+4. Запустите всё сразу: `pnpm dev` — поднимет API на `http://localhost:4000`, бота и миниапп (Vite на `http://localhost:5173`).
+5. Раздельный запуск при необходимости:
+   - API: `pnpm --filter api dev`
+   - Mini App: `pnpm --filter miniapp dev`
+   - Bot: `pnpm --filter bot dev`
+
+
 ## Telegram setup
 1. Use BotFather to set up the bot with the token above.
 2. Configure BotFather WebApp parameters to point to `MINIAPP_URL`.
