@@ -11,7 +11,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@fastify/rate-limit": "^9.3.0",
+    "@fastify/rate-limit": "^8.1.1",
     "@fastify/cors": "^10.0.1",
     "@fastify/cookie": "^10.0.1",
     "@ton-resume/shared": "workspace:*",
